@@ -22,6 +22,7 @@ _bin/
 
 # Executables
 *.exe
+!tools/*.exe
 *.out
 *.app
 *.elf
