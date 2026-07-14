@@ -1,0 +1,34 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate project
+        run: .\tools\premake5.exe vs2022
+
+      - name: Build x64
+        run: msbuild _temp\core.vcxproj /p:Configuration="release 64bits" /p:Platform=x64 /m
+
+      - name: Build x86
+        run: msbuild _temp\core.vcxproj /p:Configuration="release 32bits" /p:Platform=Win32 /m
+
+      - name: Rename artifacts
+        run: |
+          ren "_bin\release_x86_64\wormhole.exe" "Wormhole.exe"
+          ren "_bin\release_x86\wormhole.exe" "Wormhole-32bits.exe"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            _bin\release_x86_64\Wormhole.exe
+            _bin\release_x86\Wormhole-32bits.exe
+          generate_release_notes: true
