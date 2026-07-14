@@ -52,6 +52,53 @@ bool Launcher::CheckGameExecutable()
     return false;
 }
 
+void Launcher::ParseConnectionString(char* user, size_t userSz, char* pass, size_t passSz,
+                                     char* addr, size_t addrSz, char* port, size_t portSz)
+{
+    user[0] = pass[0] = addr[0] = '\0';
+    snprintf(port, portSz, "2106");
+
+    const char* at = strchr(serverUrl, '@');
+
+    if (at)
+    {
+        const char* colon = (const char*)memchr(serverUrl, ':', at - serverUrl);
+        if (colon)
+        {
+            size_t ulen = colon - serverUrl;
+            size_t plen = at - colon - 1;
+            if (ulen >= userSz) ulen = userSz - 1;
+            if (plen >= passSz) plen = passSz - 1;
+            memcpy(user, serverUrl, ulen); user[ulen] = '\0';
+            memcpy(pass, colon + 1, plen); pass[plen] = '\0';
+        }
+        else
+        {
+            size_t ulen = at - serverUrl;
+            if (ulen >= userSz) ulen = userSz - 1;
+            memcpy(user, serverUrl, ulen); user[ulen] = '\0';
+        }
+        at++;
+    }
+    else
+    {
+        at = serverUrl;
+    }
+
+    const char* colon = strchr(at, ':');
+    if (colon)
+    {
+        size_t alen = colon - at;
+        if (alen >= addrSz) alen = addrSz - 1;
+        memcpy(addr, at, alen); addr[alen] = '\0';
+        snprintf(port, portSz, "%s", colon + 1);
+    }
+    else
+    {
+        snprintf(addr, addrSz, "%s", at);
+    }
+}
+
 bool Launcher::Init(SDL_Renderer* renderer)
 {
     DetectVersion();
@@ -95,11 +142,21 @@ void Launcher::HandleDragEvent(SDL_Event& event, SDL_Window* window)
 
 void Launcher::LaunchGame()
 {
+    char user[17] = "", pass[17] = "", addr[128] = "", port[16] = "";
+    ParseConnectionString(user, sizeof(user), pass, sizeof(pass),
+                          addr, sizeof(addr), port, sizeof(port));
+
 #ifdef _WIN32
     char cmdline[512];
     snprintf(cmdline, sizeof(cmdline),
-        "tabula_rasa.exe /NoPatch /AuthServer=%s:%s",
-        serverAddr, serverPort);
+        "tabula_rasa.exe /NoPatch /AuthServer=%s:%s", addr, port);
+
+    if (user[0] != '\0')
+        snprintf(cmdline + strlen(cmdline), sizeof(cmdline) - strlen(cmdline),
+            " /user=%s", user);
+    if (pass[0] != '\0')
+        snprintf(cmdline + strlen(cmdline), sizeof(cmdline) - strlen(cmdline),
+            " /password=%s", pass);
 
     STARTUPINFOA si = {};
     si.cb = sizeof(si);
@@ -111,14 +168,26 @@ void Launcher::LaunchGame()
     if (pi.hProcess) CloseHandle(pi.hProcess);
     if (pi.hThread) CloseHandle(pi.hThread);
 #else
+    char authServer[160];
+    snprintf(authServer, sizeof(authServer), "%s:%s", addr, port);
+
     pid_t pid = fork();
     if (pid == 0)
     {
-        char addr[160];
-        snprintf(addr, sizeof(addr), "%s:%s", serverAddr, serverPort);
-        execlp("./tabula_rasa.exe", "tabula_rasa.exe",
-            "/NoPatch", "/AuthServer", addr,
-            (char*)NULL);
+        if (user[0] != '\0' && pass[0] != '\0')
+            execlp("./tabula_rasa.exe", "tabula_rasa.exe",
+                "/NoPatch", "/AuthServer", authServer,
+                "/user", user, "/password", pass,
+                (char*)NULL);
+        else if (user[0] != '\0')
+            execlp("./tabula_rasa.exe", "tabula_rasa.exe",
+                "/NoPatch", "/AuthServer", authServer,
+                "/user", user,
+                (char*)NULL);
+        else
+            execlp("./tabula_rasa.exe", "tabula_rasa.exe",
+                "/NoPatch", "/AuthServer", authServer,
+                (char*)NULL);
         _exit(1);
     }
     (void)pid;
@@ -236,7 +305,7 @@ void Launcher::RenderForm()
     colors[ImGuiCol_HeaderHovered] = ImVec4(0.0f, 0.5f, 0.7f, 0.9f);
     colors[ImGuiCol_Separator] = ImVec4(0.0f, 0.5f, 0.7f, 0.4f);
 
-    ImVec2 windowSize(300, 210);
+    ImVec2 windowSize(300, 230);
     ImVec2 windowPos(
         (io.DisplaySize.x - windowSize.x) * 0.5f,
         (io.DisplaySize.y - windowSize.y) * 0.5f
@@ -277,36 +346,26 @@ void Launcher::RenderForm()
     ImGui::Separator();
     ImGui::Spacing();
 
-    const char* destLabel = "Destination Address";
+    const char* destLabel = "Server";
     ImVec2 destSize = ImGui::CalcTextSize(destLabel);
     ImGui::SetCursorPosX((windowSize.x - destSize.x) * 0.5f);
     ImGui::Text("%s", destLabel);
 
     ImGui::Spacing();
 
-    float portWidth = 60.0f;
-    float spacing = ImGui::GetStyle().ItemSpacing.x;
-    float serverWidth = windowSize.x - 20.0f - portWidth - spacing;
-
-    ImGui::PushItemWidth(serverWidth);
+    ImGui::PushItemWidth(-1);
     if (!focusedAddr)
     {
         ImGui::SetKeyboardFocusHere();
         focusedAddr = true;
     }
-    ImGui::InputText("##addr", serverAddr, sizeof(serverAddr));
-    ImGui::PopItemWidth();
-
-    ImGui::SameLine(0.0f, 4.0f);
-
-    ImGui::PushItemWidth(portWidth);
-    ImGui::InputText("##port", serverPort, sizeof(serverPort));
+    ImGui::InputTextWithHint("##url", "user:pass@address:port", serverUrl, sizeof(serverUrl));
     ImGui::PopItemWidth();
 
     ImGui::Spacing();
     ImGui::Spacing();
 
-    bool canLaunch = serverAddr[0] != '\0' && serverPort[0] != '\0';
+    bool canLaunch = serverUrl[0] != '\0';
     if (canLaunch)
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.3f, 1.0f));
     else

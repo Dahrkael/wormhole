@@ -19,8 +19,7 @@ struct Launcher
     LauncherState state = STATE_FORM;
     WormholeRenderer wormhole;
 
-    char serverAddr[128] = "";
-    char serverPort[16] = "2106";
+    char serverUrl[1024] = "";
 
     float transitionTimer = 0.0f;
     static const float TRANSITION_DURATION;
@@ -45,6 +44,8 @@ struct Launcher
 
     void DetectVersion();
     bool CheckGameExecutable();
+    void ParseConnectionString(char* user, size_t userSz, char* pass, size_t passSz,
+                               char* addr, size_t addrSz, char* port, size_t portSz);
     bool Init(SDL_Renderer* renderer);
     void Shutdown();
     void HandleDragEvent(SDL_Event& event, SDL_Window* window);
