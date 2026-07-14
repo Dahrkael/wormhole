@@ -105,6 +105,16 @@
 
   .info a:hover { color: #00d4ff; }
 
+  .github {
+    display: block;
+    margin-top: 1.2rem;
+    font-size: 0.7rem;
+    color: #1a5070;
+    text-decoration: none;
+  }
+
+  .github:hover { color: #00d4ff; }
+
   .disclaimer {
     margin-top: 1.2rem;
     font-size: 0.7rem;
@@ -124,11 +134,20 @@
     <img class="icon" src="images/wormhole.png" alt="Wormhole">
     <h1>Wormhole</h1>
     <p class="subtitle">Launcher for Tabula Rasa</p>
-    <p class="version">v1.0.0.0</p>
+    <p class="version" id="version">v1.0.0</p>
     <a class="download" href="https://github.com/Dahrkael/wormhole/releases/latest/download/Wormhole.exe">Download (64 bits)</a>
 	<a class="download" href="https://github.com/Dahrkael/wormhole/releases/latest/download/Wormhole-32bits.exe">Download (32 bits)</a>
     <p class="info">Place wormhole.exe inside the game client folder</p>
+    <a class="github" href="https://github.com/Dahrkael/wormhole">Source code on GitHub</a>
     <p class="disclaimer">Antivirus software may flag this program as malicious. This is a false positive caused by the window transparency technique used. Add an exception or temporarily disable your antivirus to run it.</p>
   </div>
+  <script>
+  fetch("https://api.github.com/repos/Dahrkael/wormhole/releases/latest")
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.tag_name) document.getElementById("version").textContent = d.tag_name;
+    })
+    .catch(function() {});
+  </script>
 </body>
 </html>
