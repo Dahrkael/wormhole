@@ -346,7 +346,7 @@ void Launcher::RenderForm()
     ImGui::Separator();
     ImGui::Spacing();
 
-    const char* destLabel = "Server";
+    const char* destLabel = "Destination";
     ImVec2 destSize = ImGui::CalcTextSize(destLabel);
     ImGui::SetCursorPosX((windowSize.x - destSize.x) * 0.5f);
     ImGui::Text("%s", destLabel);
